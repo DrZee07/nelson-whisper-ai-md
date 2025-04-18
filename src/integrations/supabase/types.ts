@@ -142,6 +142,15 @@ export type Database = {
           similarity: number
         }[]
       }
+      semantic_search: {
+        Args: { query_vector: string }
+        Returns: {
+          id: string
+          title: string
+          content: string
+          similarity: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

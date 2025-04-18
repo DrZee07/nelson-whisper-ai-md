@@ -17,7 +17,7 @@ const supabase = createClient(
   SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function generateEmbedding(text: string): Promise<number[]> {
+async function generateEmbedding(text: string): Promise<string> {
   try {
     const response = await fetch('https://api.mistral.ai/v1/embeddings', {
       method: 'POST',
@@ -36,7 +36,9 @@ async function generateEmbedding(text: string): Promise<number[]> {
     }
 
     const data = await response.json();
-    return data.data[0].embedding;
+    // Format the embedding as a properly formatted vector string
+    // This ensures it has the proper format that PostgreSQL vector expects
+    return '[' + data.data[0].embedding.join(',') + ']';
   } catch (error) {
     console.error('Error generating embedding:', error);
     throw error;
