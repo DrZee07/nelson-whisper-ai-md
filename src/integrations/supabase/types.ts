@@ -129,6 +129,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      embed_query: {
+        Args: { query_text: string }
+        Returns: string
+      }
       search_textbook: {
         Args: { query_text: string; match_count?: number }
         Returns: {

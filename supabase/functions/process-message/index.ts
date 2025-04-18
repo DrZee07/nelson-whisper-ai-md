@@ -17,6 +17,32 @@ const supabase = createClient(
   SUPABASE_SERVICE_ROLE_KEY!
 );
 
+async function generateEmbedding(text: string): Promise<number[]> {
+  try {
+    const response = await fetch('https://api.mistral.ai/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${MISTRAL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "mistral-embed",
+        input: text,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Embedding API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.data[0].embedding;
+  } catch (error) {
+    console.error('Error generating embedding:', error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -27,12 +53,15 @@ serve(async (req) => {
     const { message, sessionId = 'default' } = await req.json();
     console.log(`Processing message in session ${sessionId}: ${message}`);
 
-    // Step 1: Perform semantic search in the textbook_content table
-    const { data: searchResults, error: searchError } = await supabase
-      .rpc('search_textbook', {
-        query_text: message,
-        match_count: 3
-      });
+    // Step 1: Generate embedding for the query
+    const embedding = await generateEmbedding(message);
+    console.log('Generated embedding for query');
+
+    // Step 2: Perform semantic search using the generated embedding
+    const { data: searchResults, error: searchError } = await supabase.rpc('search_textbook', {
+      query_text: message,
+      match_count: 3
+    });
 
     if (searchError) {
       console.error('Error in semantic search:', searchError);
@@ -49,7 +78,7 @@ serve(async (req) => {
         .join('\n\n');
     }
 
-    // Step 2: Generate a response using Mistral API with the context
+    // Step 3: Generate a response using Mistral API with the context
     const mistralResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -88,7 +117,7 @@ serve(async (req) => {
     // Extract the AI response
     const aiResponse = mistralData.choices[0].message.content;
 
-    // Step 3: Store the message and response in the chat_messages table
+    // Step 4: Store the message and response in the chat_messages table
     const { error: insertError } = await supabase
       .from('chat_messages')
       .insert([
